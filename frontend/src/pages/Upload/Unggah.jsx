@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Image, X, Grid, Check } from 'lucide-react'; 
 import { useNavigate } from 'react-router-dom';
+import api from '../../utils/api'; // ✅ Import API Helper
 
 const Unggah = () => {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ const Unggah = () => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Helper: Ubah file gambar jadi text base64 agar bisa disimpan di LocalStorage
+  // Helper: Ubah file gambar jadi text base64 (Hanya untuk preview UI)
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -36,11 +37,12 @@ const Unggah = () => {
       const base64 = await fileToBase64(file);
       
       const newFile = {
-        id: Date.now() + Math.random(), // ID unik
+        id: Date.now() + Math.random(),
         name: file.name,
         size: (file.size / 1024 / 1024).toFixed(1) + 'MB',
         url: URL.createObjectURL(file),
         base64: base64,
+        fileRaw: file, // ✅ PENTING: Simpan file asli untuk dikirim ke Backend
         status: 'completed'
       };
       
@@ -53,7 +55,8 @@ const Unggah = () => {
     setUploadedFiles(uploadedFiles.filter(f => f.id !== fileId));
   };
 
-  const handleSubmit = (e) => {
+  // ✅ LOGIKA SUBMIT KE BACKEND
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (uploadedFiles.length === 0) {
@@ -61,29 +64,34 @@ const Unggah = () => {
       return;
     }
 
-    // 1. Buat Data Karya Baru
-    const newArtwork = {
-      id: Date.now(),
-      title: formData.judul,
-      category: formData.kategori,
-      description: formData.deskripsi,
-      // Simpan semua gambar yang diupload
-      images: uploadedFiles.map(f => f.base64),
-      mainImage: uploadedFiles[0].base64, // Gambar utama
-    };
+    try {
+      // Kita loop semua file yang ada di list, lalu kirim satu per satu ke backend
+      // Karena endpoint /api/arts biasanya menerima 1 file per request
+      const uploadPromises = uploadedFiles.map((fileItem) => {
+        const dataKirim = new FormData();
+        dataKirim.append('title', formData.judul);       // Sesuai README: 'title'
+        dataKirim.append('description', formData.deskripsi); // Sesuai README: 'description'
+        dataKirim.append('category', formData.kategori); // Sesuai README: 'category'
+        dataKirim.append('imageUrl', fileItem.fileRaw);  // Sesuai README: 'imageUrl' (File Asli)
 
-    // 2. Ambil data lama & Simpan data baru ke LocalStorage
-    const existingData = JSON.parse(localStorage.getItem('user_artworks') || '[]');
-    const updatedData = [newArtwork, ...existingData];
-    localStorage.setItem('user_artworks', JSON.stringify(updatedData));
+        return api.post('/api/arts', dataKirim);
+      });
 
-    // 3. Tampilkan Pop-up Sukses
-    setShowSuccessModal(true);
+      // Tunggu semua proses upload selesai
+      await Promise.all(uploadPromises);
 
-    // 4. Redirect ke Profile setelah 2 detik
-    setTimeout(() => {
-      navigate('/profile');
-    }, 2000);
+      // Jika berhasil
+      setShowSuccessModal(true);
+
+      // Redirect ke Profile setelah 2 detik
+      setTimeout(() => {
+        navigate('/profile');
+      }, 2000);
+
+    } catch (error) {
+      console.error("Gagal upload karya:", error);
+      alert(error.response?.data?.message || 'Gagal mengunggah karya. Pastikan sudah Login.');
+    }
   };
 
   return (

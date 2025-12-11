@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, Wallet, Grid, Image as ImageIcon, Edit, ArrowLeft } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Calendar, Clock, MapPin, Wallet, Grid, Image as ImageIcon, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import api from '../../utils/api';
 
 const TambahAcara = () => {
   const navigate = useNavigate();
   const [bannerPreview, setBannerPreview] = useState(null);
   
   // State Tanggal
-  const [dateValue, setDateValue] = useState('');     
+  const [dateValue, setDateValue] = useState('');      
   const [displayDate, setDisplayDate] = useState(''); 
 
   const [formData, setFormData] = useState({
@@ -17,10 +18,10 @@ const TambahAcara = () => {
     harga: '',
     lokasi: '',
     deskripsi: '',
-    gambar: null // Nanti kita simpan URL-nya
+    gambarFile: null // ✅ Simpan File aslinya, bukan cuma base64
   });
 
-  // Helper: Format Tanggal
+  // Helper Format Tanggal
   const formatDateIndo = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -39,49 +40,51 @@ const TambahAcara = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Helper: Convert Gambar ke Base64 (Supaya bisa disimpan di LocalStorage)
+  // ✅ LOGIKA GAMBAR: Simpan Preview & File Asli
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // 1. Simpan File Asli untuk dikirim ke Backend
+      setFormData({ ...formData, gambarFile: file }); 
+      
+      // 2. Buat Preview untuk tampilan saja
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData({ ...formData, gambar: reader.result }); // Simpan string base64
         setBannerPreview(reader.result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // --- LOGIKA PENYIMPANAN DATA ---
-  const handleSubmit = (e) => {
+  // ✅ LOGIKA SUBMIT KE BACKEND
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // 1. Siapkan Objek Data Baru (Sesuaikan nama field dengan Tabel Admin)
-    const newEvent = {
-      id: Date.now(), // ID Unik
-      kategori: formData.kategori || 'Pameran',
-      judul: formData.judulAcara,
-      tanggal: dateValue, // Format YYYY-MM-DD
-      alamat: formData.lokasi,
-      harga: formData.harga,
-      waktu: formData.waktu,
-      deskripsi: formData.deskripsi,
-      gambar: formData.gambar
-    };
-
-    // 2. Ambil data lama dari LocalStorage
-    const existingEvents = JSON.parse(localStorage.getItem('admin_events')) || [];
-
-    // 3. Gabungkan data lama + data baru
-    const updatedEvents = [newEvent, ...existingEvents];
-
-    // 4. Simpan kembali ke LocalStorage
-    localStorage.setItem('admin_events', JSON.stringify(updatedEvents));
-
-    alert('Acara berhasil diunggah dan masuk ke Admin!');
+    // 1. Gunakan FormData karena ada File Upload
+    const dataKirim = new FormData();
+    dataKirim.append('title', formData.judulAcara);       
+    dataKirim.append('description', formData.deskripsi);
+    dataKirim.append('date', dateValue);
+    dataKirim.append('location', formData.lokasi);
+    dataKirim.append('price', formData.harga);
+    // dataKirim.append('time', formData.waktu); // Jika backend butuh waktu terpisah
+    dataKirim.append('organizerName', 'Admin'); // Hardcode dulu sesuai kebutuhan
     
-    // Redirect ke Admin Acara untuk melihat hasil (atau ke beranda)
-    navigate('/admin/acara'); 
+    if (formData.gambarFile) {
+        dataKirim.append('imageUrl', formData.gambarFile); // 'imageUrl' sesuai README backend
+    }
+
+    try {
+        // 2. Kirim via Axios
+        await api.post('/api/events', dataKirim);
+        
+        alert('Acara Berhasil Diunggah ke Server!');
+        navigate('/admin/acara');
+
+    } catch (error) {
+        console.error("Gagal upload:", error);
+        alert(error.response?.data?.message || 'Gagal mengunggah acara.');
+    }
   };
 
   const inputClass = "w-full h-14 px-4 pr-12 rounded-xl border border-gray-300 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4F75FF] transition bg-white text-base";
@@ -89,36 +92,30 @@ const TambahAcara = () => {
 
   return (
     <div className="min-h-screen bg-white font-sans py-8 px-4 lg:px-8">
-
       <div className="max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Kategori */}
+          {/* Form Input Tetap Sama, Logika onChange sudah dihandle di atas */}
           <div className="relative">
             <select name="kategori" onChange={handleChange} className={`${inputClass} appearance-none cursor-pointer`}>
               <option disabled selected>Kategori</option>
               <option>Pameran</option>
               <option>Workshop</option>
-              <option>Seminar</option>
-              <option>Pertunjukan</option>
             </select>
             <Grid size={20} className={iconClass} />
           </div>
 
-          {/* Judul */}
           <input type="text" name="judulAcara" onChange={handleChange} placeholder="Judul Kegiatan..." className={inputClass} required />
-
-          {/* Deskripsi */}
+          
           <textarea name="deskripsi" onChange={handleChange} placeholder="Deskripsi Kegiatan..." rows={5} className="w-full p-4 rounded-xl border border-gray-300 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4F75FF] resize-none transition text-base"></textarea>
 
-          {/* Grid Tanggal & Waktu */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="relative">
               <input type="text" placeholder="Hari/Tanggal" value={displayDate} 
                 onFocus={(e) => { e.target.type = 'date'; e.target.value = dateValue; }}
                 onBlur={(e) => { e.target.type = 'text'; e.target.value = displayDate; }}
                 onChange={handleDateChange}
-                className={`${inputClass} appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full`}
+                className={`${inputClass} appearance-none`}
               />
               <Calendar size={20} className={iconClass} />
             </div>
@@ -126,26 +123,23 @@ const TambahAcara = () => {
               <input type="text" name="waktu" onChange={handleChange} placeholder="Waktu" 
                 onFocus={(e) => e.target.type = 'time'}
                 onBlur={(e) => e.target.type = 'text'}
-                className={`${inputClass} [&::-webkit-calendar-picker-indicator]:opacity-0`}
+                className={`${inputClass}`}
               />
               <Clock size={20} className={iconClass} />
             </div>
           </div>
 
-          {/* Harga */}
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">Rp</span>
             <input type="number" name="harga" onChange={handleChange} placeholder="Harga Tiket Masuk (HTM)" className={`${inputClass} pl-12`} />
             <Wallet size={20} className={iconClass} />
           </div>
 
-          {/* Alamat */}
           <div className="relative">
             <input type="text" name="lokasi" onChange={handleChange} placeholder="Alamat" className={inputClass} required />
             <MapPin size={20} className={iconClass} />
           </div>
 
-          {/* Upload Poster */}
           <div className="border border-gray-300 rounded-xl p-6 bg-white">
             <h3 className="text-center text-gray-700 font-medium mb-4">Unggah Poster Kegiatan</h3>
             <label className="flex flex-col items-center justify-center cursor-pointer group w-full min-h-[200px] border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-50 transition relative overflow-hidden">
@@ -160,14 +154,12 @@ const TambahAcara = () => {
                 <div className="text-center p-6">
                   <div className="w-14 h-14 bg-[#4F75FF] rounded-lg flex items-center justify-center mx-auto mb-3 shadow-md"><ImageIcon className="text-white" size={28} /></div>
                   <p className="text-gray-500 text-sm">Seret gambar atau <span className="text-[#4F75FF] font-bold">cari file</span></p>
-                  <p className="text-gray-400 text-xs mt-1">Max 10 MB</p>
                 </div>
               )}
               <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
             </label>
           </div>
 
-          {/* Tombol Aksi */}
           <div className="flex justify-end gap-4 pt-4 pb-10">
             <button type="button" onClick={() => navigate('/beranda')} className="px-8 py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-bold hover:bg-gray-50 transition">Simpan ke draft</button>
             <button type="submit" className="px-10 py-3 rounded-xl bg-[#E3FB52] text-black font-bold hover:bg-[#d9f046] transition shadow-md">Unggah</button>

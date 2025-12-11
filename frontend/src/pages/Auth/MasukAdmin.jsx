@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
-import logoImage from '../../assets/logoadmin.png'; // Pastikan path logo benar
+import api from '../../utils/api';
+import logoImage from '../../assets/logoadmin.png';
 
 const MasukAdmin = () => {
   const navigate = useNavigate();
@@ -18,27 +19,28 @@ const MasukAdmin = () => {
     setError(''); // Hapus error saat mengetik
   };
 
-  const handleLogin = (e) => {
+  // ✅ LOGIKA LOGIN BACKEND
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    // --- LOGIKA LOGIN DUMMY ---
-    // Username: admin@artconnect.com
-    // Password: admin123
-    if (formData.email === 'admin@artconnect.com' && formData.password === 'admin123') {
-      
-      // Simpan sesi admin di localStorage
-      const adminData = {
-        name: 'Super Admin',
+    try {
+      // 1. Kirim data ke Backend
+      const response = await api.post('/api/auth/login', {
         email: formData.email,
-        role: 'admin',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'
-      };
-      localStorage.setItem('artconnect_admin', JSON.stringify(adminData));
-      
-      // Redirect ke Dashboard Admin
-      navigate('/admin/dashboard');
-    } else {
-      setError('Email atau password salah!');
+        password: formData.password
+      });
+
+      // 2. Simpan Token & Data User dari Backend
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('artconnect_admin', JSON.stringify(response.data.user));
+
+      // 3. Redirect ke Dashboard
+      navigate('/admin/acara');
+
+    } catch (err) {
+      console.error("Login Gagal:", err);
+      // Tampilkan pesan error dari server atau default
+      setError(err.response?.data?.message || 'Email atau password salah!');
     }
   };
 

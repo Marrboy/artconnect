@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-
-// ✅ 1. IMPORT LOGO DI SINI JUGA
+import api from '../../utils/api'; // ✅ Import API Helper
 import logoConnect from '../../assets/logo.png'; 
 
 const Daftar = ({ onLogin }) => {
@@ -22,8 +21,8 @@ const Daftar = ({ onLogin }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // LOGIKA DAFTAR MANUAL
-  const handleSubmit = (e) => {
+  // ✅ LOGIKA DAFTAR BACKEND
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (formData.password !== formData.konfirmasiPassword) {
@@ -31,13 +30,25 @@ const Daftar = ({ onLogin }) => {
       return;
     }
 
-    console.log('Data Pendaftaran:', formData);
-    alert("Pendaftaran Berhasil! Silakan masuk dengan akun Anda.");
-    
-    navigate('/masuk');
+    try {
+      // Kirim data registrasi ke backend
+      await api.post('/api/auth/register', {
+        name: formData.namaLengkap,       // Sesuai README: name
+        email: formData.email,            // Sesuai README: email
+        password: formData.password,      // Sesuai README: password
+        confirmPassword: formData.konfirmasiPassword // Sesuai README
+      });
+
+      alert("Pendaftaran Berhasil! Silakan masuk dengan akun Anda.");
+      navigate('/masuk');
+
+    } catch (error) {
+      console.error("Gagal daftar:", error);
+      alert(error.response?.data?.message || "Gagal melakukan pendaftaran.");
+    }
   };
 
-  // LOGIKA LOGIN GOOGLE
+  // LOGIKA LOGIN GOOGLE (Dummy)
   const handleGoogleLogin = () => {
     const googleUser = {
       name: "Pengguna Google",
@@ -58,7 +69,6 @@ const Daftar = ({ onLogin }) => {
         {/* BAGIAN KIRI (LOGO) */}
         <div className="text-center text-white order-last lg:order-first">
           <div className="flex justify-center mb-6 lg:mb-10">
-            {/* ✅ 2. GUNAKAN VARIABEL IMPORT */}
             <img 
               src={logoConnect} 
               alt="ArtConnect Logo" 

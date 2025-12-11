@@ -2,21 +2,41 @@ import React, { useState, useEffect } from 'react';
 import AdminSidebar from '../../components/Admin/AdminSidebar'; // Import Sidebar yg baru dibuat
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../utils/api';
 
 const ManajemenAcara = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]); 
 
-  // Ambil data (Sama seperti sebelumnya)
+  // ✅ AMBIL DATA DARI BACKEND
   useEffect(() => {
-    const savedEvents = JSON.parse(localStorage.getItem('admin_events')) || [];
-    setEvents(savedEvents);
-  }, []);
+    const fetchEvents = async () => {
+      try {
+        const response = await api.get('/api/events');
+        setEvents(response.data); // Simpan data dari database
+      } catch (error) {
+        console.error("Gagal ambil data:", error);
+        // Jika token expired (401), tendang ke login
+        if (error.response && error.response.status === 401) {
+            navigate('/admin/masuk');
+        }
+      }
+    };
+    fetchEvents();
+  }, [navigate]);
 
-  const handleDelete = (id) => {
-    const updatedEvents = events.filter(event => event.id !== id);
-    setEvents(updatedEvents);
-    localStorage.setItem('admin_events', JSON.stringify(updatedEvents));
+  // ✅ HAPUS DATA DI BACKEND
+  const handleDelete = async (id) => {
+    if (window.confirm("Yakin ingin menghapus acara ini?")) {
+        try {
+            await api.delete(`/api/events/${id}`);
+            // Update tampilan setelah berhasil hapus
+            setEvents(events.filter(event => event.id !== id));
+        } catch (error) {
+            console.error("Gagal hapus:", error);
+            alert("Gagal menghapus acara.");
+        }
+    }
   };
 
   return (

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
-
-// ✅ 1. IMPORT LOGO DI SINI (Wajib pakai import biar muncul di Vercel)
+import api from '../../utils/api'; // ✅ Import API Helper
 import logoConnect from '../../assets/logo.png'; 
 
 const Masuk = ({ onLogin }) => {
@@ -19,27 +18,36 @@ const Masuk = ({ onLogin }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // LOGIKA LOGIN MANUAL
-  const handleSubmit = (e) => {
+  // ✅ LOGIKA LOGIN BACKEND (USER)
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Simulasi: Ambil nama dari bagian depan email
-    const dummyName = formData.email.split('@')[0]; 
-    
-    const userData = {
-      name: dummyName.charAt(0).toUpperCase() + dummyName.slice(1), 
-      email: formData.email,
-      role: "user"
-    };
+    try {
+      // 1. Kirim email & password ke backend
+      const response = await api.post('/api/auth/login', {
+        email: formData.email,
+        password: formData.password
+      });
 
-    if (onLogin) {
-      onLogin(userData);
+      // 2. Simpan Token untuk otentikasi selanjutnya
+      localStorage.setItem('token', response.data.token);
+      
+      // 3. Update state global User (lewat props onLogin di App.jsx)
+      // response.data.user berisi info user dari database (id, nama, role)
+      if (onLogin) {
+        onLogin(response.data.user);
+      }
+
+      // 4. Redirect ke Beranda
+      navigate('/beranda');
+
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert(error.response?.data?.message || 'Email atau password salah!');
     }
-
-    navigate('/beranda');
   };
 
-  // LOGIKA LOGIN GOOGLE
+  // LOGIKA LOGIN GOOGLE (Dummy)
   const handleGoogleLogin = () => {
     const googleUser = {
       name: "Pengguna Google",
@@ -60,7 +68,6 @@ const Masuk = ({ onLogin }) => {
         {/* BAGIAN KIRI (LOGO) */}
         <div className="text-center text-white order-last lg:order-first">
           <div className="flex justify-center mb-6 lg:mb-10">
-            {/* ✅ 2. GUNAKAN VARIABEL IMPORT DI SINI */}
             <img 
               src={logoConnect} 
               alt="ArtConnect Logo" 
