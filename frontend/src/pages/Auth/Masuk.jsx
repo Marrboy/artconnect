@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, ShieldCheck } from 'lucide-react'; // Tambah icon ShieldCheck
+import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
-// --- BAGIAN INI HARUS DISESUAIKAN DI VS CODE ANDA ---
-// 1. Hapus tanda komentar (//) pada baris import di bawah ini:
-// import logoIs from '../../assets/logois.png'; 
-
-// 2. Hapus baris const logoIs di bawah ini saat di VS Code:
-const logoIs = "https://placehold.co/150x80/4F75FF/FFFFFF?text=ArtConnect"; 
-// ----------------------------------------------------
+// ✅ 1. IMPORT LOGO DI SINI (Wajib pakai import biar muncul di Vercel)
+import logoConnect from '../../assets/logo.png'; 
 
 const Masuk = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -21,18 +16,14 @@ const Masuk = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   // LOGIKA LOGIN MANUAL
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Login submitted:', formData);
-
-    // Simulasi: Ambil nama dari bagian depan email (sebelum @)
+    
+    // Simulasi: Ambil nama dari bagian depan email
     const dummyName = formData.email.split('@')[0]; 
     
     const userData = {
@@ -69,11 +60,11 @@ const Masuk = ({ onLogin }) => {
         {/* BAGIAN KIRI (LOGO) */}
         <div className="text-center text-white order-last lg:order-first">
           <div className="flex justify-center mb-6 lg:mb-10">
+            {/* ✅ 2. GUNAKAN VARIABEL IMPORT DI SINI */}
             <img 
-              src="/src/assets/logo.png" 
+              src={logoConnect} 
               alt="ArtConnect Logo" 
               className="h-40 lg:h-80 w-auto drop-shadow-2xl mx-auto"
-              onError={(e) => {e.target.style.display='none'}} 
             />
           </div>
           <h1 className="text-4xl font-bold lg:hidden">ArtConnect</h1>
@@ -155,7 +146,7 @@ const Masuk = ({ onLogin }) => {
              <Link to="/daftar" className="text-[#E3FB52] font-bold hover:underline">Daftar</Link>
           </div>
 
-          {/* --- ✅ TAMBAHAN: LINK LOGIN ADMIN --- */}
+          {/* Link Login Admin */}
           <div className="mt-10 pt-6 border-t border-white/20 text-center">
             <Link 
               to="/admin/masuk" 
@@ -165,7 +156,6 @@ const Masuk = ({ onLogin }) => {
               Masuk sebagai Admin
             </Link>
           </div>
-          {/* ------------------------------------- */}
 
         </div>
       </div>
