@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, LogOut, MapPin, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-
-// Import banner image
-import bannerImage from '../../assets/acara.png'; // Pastikan path ini benar
+import api from '../../utils/api'; // ✅ Import API Helper
+import bannerImage from '../../assets/acara.png'; 
 
 const Profile = ({ user, onLogout }) => {
   const navigate = useNavigate();
@@ -12,19 +11,41 @@ const Profile = ({ user, onLogout }) => {
   // State untuk menyimpan daftar karya user
   const [myArtworks, setMyArtworks] = useState([]);
 
-  // --- AMBIL DATA DARI LOCALSTORAGE ---
+  // ✅ AMBIL DATA DARI BACKEND
   useEffect(() => {
-    const saved = localStorage.getItem('user_artworks');
-    if (saved) {
-      setMyArtworks(JSON.parse(saved));
-    }
+    const fetchMyArtworks = async () => {
+      try {
+        // 1. Ambil data user dulu untuk dapat ID-nya
+        const userRes = await api.get('/api/users/me');
+        const userId = userRes.data.id;
+
+        // 2. Ambil daftar karya berdasarkan User ID
+        // Endpoint: GET /api/users/:id/arts
+        const artsRes = await api.get(`/api/users/${userId}/arts`);
+        
+        setMyArtworks(artsRes.data);
+      } catch (error) {
+        console.error("Gagal ambil karya:", error);
+      }
+    };
+
+    fetchMyArtworks();
   }, []);
 
-  // Fungsi Hapus Karya
-  const handleDelete = (id) => {
-    const updated = myArtworks.filter(art => art.id !== id);
-    setMyArtworks(updated);
-    localStorage.setItem('user_artworks', JSON.stringify(updated));
+  // ✅ FUNGSI HAPUS KARYA (API)
+  const handleDelete = async (id) => {
+    if (window.confirm("Yakin ingin menghapus karya ini?")) {
+      try {
+        // Endpoint: DELETE /api/arts/:id
+        await api.delete(`/api/arts/${id}`);
+        
+        // Update state tampilan (hapus dari layar)
+        setMyArtworks(myArtworks.filter(art => art.id !== id));
+      } catch (error) {
+        console.error("Gagal hapus karya:", error);
+        alert("Gagal menghapus karya.");
+      }
+    }
   };
 
   const handleLogoutClick = () => setShowLogoutModal(true);
@@ -57,7 +78,8 @@ const Profile = ({ user, onLogout }) => {
               <h2 className="text-xl font-bold text-gray-900 mb-1">{user?.name || 'Nama Pengguna'}</h2>
               <div className="flex items-center justify-center gap-1 text-gray-600 mb-6">
                 <MapPin size={14} />
-                <span className="text-xs font-medium">{user?.address || 'Surabaya, Indonesia'}</span>
+                {/* Menampilkan bio sebagai alamat jika backend menggunakan field bio */}
+                <span className="text-xs font-medium">{user?.address || user?.bio || 'Surabaya, Indonesia'}</span>
               </div>
               <div className="space-y-3 px-6 pb-8">
                 <Link to="/edit-profile" className="w-full bg-[#E3FB52] hover:bg-[#d4ec43] text-black font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-sm">
@@ -81,12 +103,13 @@ const Profile = ({ user, onLogout }) => {
             {/* GRID LAYOUT */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               
-              {/* 1. MAPPING KARYA YANG SUDAH DIUPLOAD */}
+              {/* 1. MAPPING KARYA DARI API */}
               {myArtworks.map((item) => (
                 <div key={item.id} className="bg-white p-3 rounded-[20px] shadow-lg hover:shadow-xl transition-all duration-300">
                   {/* Gambar Karya */}
                   <div className="w-full aspect-video rounded-[15px] overflow-hidden bg-gray-200 mb-4">
-                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                    {/* Backend biasanya kirim field 'imageUrl', frontend lama pakai 'image'. Kita handle keduanya */}
+                    <img src={item.imageUrl || item.image} alt={item.title} className="w-full h-full object-cover" />
                   </div>
                   
                   {/* Tombol Edit & Hapus */}
@@ -104,7 +127,7 @@ const Profile = ({ user, onLogout }) => {
                 </div>
               ))}
 
-              {/* 2. KARTU TAMBAH KARYA (Selalu di akhir) */}
+              {/* 2. KARTU TAMBAH KARYA */}
               <div 
                 onClick={() => navigate('/upload')}
                 className="bg-white rounded-[20px] shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[200px]"
@@ -121,7 +144,7 @@ const Profile = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Modal Logout */}
+      {/* Modal Logout (Tetap Sama) */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[30px] p-8 w-full max-w-md text-center shadow-2xl animate-in zoom-in-95 duration-200">
